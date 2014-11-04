@@ -1,0 +1,149 @@
+#!/usr/bin/env python
+from optparse import OptionParser
+import sys, glob, os, hashlib
+#./client ipaddress 9090 --operation read --filename example.txt --user guest
+
+sys.path.append('gen-py')
+sys.path.insert(0,glob.glob('/home/yaoliu/src_code/thrift/lib/py/build/lib.*')[0])
+
+from chord_dht import FileStore
+from chord_dht.ttypes import *
+
+from thrift import Thrift
+from thrift.transport import TSocket
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol, TJSONProtocol
+
+
+
+#1 - local host
+#2 - port
+#3 - --operation
+#4 - op
+#5 - --filename
+#6 - filename
+#7 - --user
+#8 - username
+
+
+
+parser = OptionParser()
+parser.add_option("--operation",action="store", dest = "operation")
+parser.add_option("--filename",action="store", dest ="filename")
+parser.add_option("--user", action="store", dest="user")
+(options, args) = parser.parse_args()
+
+
+
+
+host = sys.argv[1]
+port = int(sys.argv[2])                  
+
+try:
+
+
+
+
+  # Make socket
+  transport = TSocket.TSocket(host, port)
+
+  # Buffering is critical. Raw sockets are very slow
+  transport = TTransport.TBufferedTransport(transport)
+
+  # Wrap in a protocol
+  protocol = TBinaryProtocol.TBinaryProtocol(transport)
+  jsonproto = TJSONProtocol.TJSONProtocol(transport)
+
+  # Create a client to use the protocol encoder
+  client = FileStore.Client(protocol)
+
+  # Connect!
+  transport.open()
+  
+
+  buff = TTransport.TMemoryBuffer()
+  prot = TJSONProtocol.TJSONProtocol(buff)
+  
+  key = "" 
+ 
+  fIn = ""
+  notFound = False
+  m = RFileMetadata()
+  for f in os.listdir("."):
+    if f == options.filename:
+      fIn = f
+    else:
+      notFound = True
+ 
+  #fObj = open(fIn, 'r')      
+  #c = fObj.read()
+  #r = RFile(m,c)
+  #r.meta.owner = options.user
+  #r.meta.filename = options.filename
+  key = hashlib.sha256(options.filename+":"+options.user)
+  key = str(key.hexdigest())
+
+  #except:
+   # print "stuff"
+ 
+  if options.operation == "write":
+  
+    fObj = open(fIn, 'r')      
+    c = fObj.read()
+    r = RFile(m,c)
+    r.meta.owner = options.user
+    r.meta.filename = options.filename
+    #proj2
+    succ = client.findSucc(key)
+    transport.close()
+    #proj1
+    transport_write = TSocket.TSocket(succ.ip,succ.port) 
+    transport_write = TTransport.TBufferedTransport(transport_write)
+    protocol_write = TBinaryProtocol.TBinaryProtocol(transport_write)
+    json_protocol_write = TJSONProtocol.TJSONProtocol(transport_write)
+    transport_write.open()
+    retClient = FileStore.Client(protocol_write)
+    retClient.writeFile(r)
+    transport_write.close()
+    
+
+  elif options.operation == "read":
+    #proj2
+    succ = client.findSucc(key)
+    transport.close()
+    #proj1
+
+    transport_read = TSocket.TSocket(succ.ip,succ.port)
+    transport_read = TTransport.TBufferedTransport(transport_read)
+    protocol_read = TBinaryProtocol.TBinaryProtocol(transport_read)
+    json_protocol_read = TJSONProtocol.TJSONProtocol(transport_read)
+    transport_read.open()
+    try:
+      retClient = FileStore.Client(protocol_read)
+    except:
+      raise SystemException
+    retVal = retClient.readFile(options.filename, options.user)
+    retVal.write(prot)
+    print buff.getvalue()
+  
+
+  elif options.operation == "delete":
+    #proj2
+    succ = client.findSucc(key)
+    transport.close()
+    
+    transport_delete = TSocket.TSocket(succ.ip,succ.port)
+    transport_delete = TTransport.TBufferedTransport(transport_delete)
+    protocol_delete = TBinaryProtocol.TBinaryProtocol(transport_delete)
+    json_protocol_delete = TJSONProtocol.TJSONProtocol(transport_delete)
+    transport_delete.open()
+    retClient = FileStore.Client(protocol_delete)
+    retClient.deleteFile(options.filename, options.user)
+
+  transport.close()
+
+  
+  
+  #transport.close()
+except Thrift.TException, tx:
+  print '%s' % (tx.message)

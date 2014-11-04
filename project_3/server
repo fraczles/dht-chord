@@ -1,0 +1,249 @@
+#!/usr/bin/env python
+import sys, glob, os
+import hashlib, time, socket
+
+sys.path.append('gen-py')
+sys.path.insert(0,glob.glob('/home/yaoliu/src_code/thrift/lib/py/build/lib.*')[0])
+
+from chord_dht import FileStore
+from chord_dht.ttypes import *
+
+from thrift.transport import TSocket
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol
+from thrift.server import TServer
+
+port_num = sys.argv[1]
+ownerMeta = {"":[]}
+ownerFileMeta = {}
+fingertable = []
+myIP = socket.gethostbyname(socket.gethostname())
+ip_port = myIP + ":" + port_num
+sha256 = hashlib.sha256()
+sha256.update(ip_port)
+myID = sha256.hexdigest()
+
+print "MY PORT IS: " + port_num + "MY ID IS: " + myID
+
+
+
+class FileStoreHandler:
+  def __init__(self):
+    self.log = {}
+
+
+  def listOwnedFiles(self, user):
+    return ownerMeta[user]     
+
+
+  def writeFile(self, rFile):
+    index = rFile.meta.owner,rFile.meta.filename
+    h = hashlib.sha256(rFile.content)
+    h = str(h.hexdigest())
+    
+    
+
+    if index in ownerFileMeta:
+      #filename
+      fname = ownerFileMeta[index].meta.filename
+    
+      #created
+      created = ownerFileMeta[index].meta.created
+
+      #updated
+      updated = time.time()
+
+      #deleted
+      deleted = ownerFileMeta[index].meta.deleted      
+
+      #version
+      version = ownerFileMeta[index].meta.version + 1
+
+      #owner
+      owner = ownerFileMeta[index].meta.owner
+
+      #content length
+      contentLength = ownerFileMeta[index].meta.contentLength
+
+      #hash
+      contentHash = h
+    
+      m = RFileMetadata(fname, created, updated, deleted, version, owner, contentLength, contentHash)
+      c = rFile.content
+      r = RFile(m,c)
+      name = index[0]
+      ownerFileMeta[index] = r
+      ownerMeta[name].append(ownerFileMeta[index].meta)
+
+    else:
+       #filename
+      fname = rFile.meta.filename
+    
+      #created
+      created = time.time()
+
+      #updated
+      updated = time.time()
+
+      #deleted
+      deleted = rFile.meta.deleted      
+
+      #version
+      version = 0
+
+      #owner
+      owner = rFile.meta.owner
+
+      #content length
+      contentLength = rFile.meta.contentLength
+
+      #hash
+      contentHash = h
+    
+      m = RFileMetadata(fname, created, updated, deleted, version, owner, contentLength, contentHash)
+      c = rFile.content
+      r = RFile(m,c)
+      ownerFileMeta[index] = r
+      
+      name = index[0]
+      if name not in ownerMeta:
+        ownerMeta[name] = [m]
+      else:
+        ownerMeta[name].append(m)
+      
+
+      
+    
+    
+    #print "user is: " + index[0]
+    #print "owner meta at " + index[0] + " is: " + ownerMeta[index[0]]
+    
+
+
+  def readFile(self, filename, owner):
+    index = owner, filename
+    if index in ownerFileMeta:
+      r = ownerFileMeta[index]
+      print r  
+      return r
+    else:
+      raise SystemException()
+      return "Error"
+
+
+
+
+  def deleteFile(self, filename, owner):
+    index = owner, filename
+    if index in ownerFileMeta:
+      ownerFileMeta[index].meta.deleted = time.time()
+      del ownerFileMeta[index]
+      for m in ownerMeta[owner]:
+        if m.filename == filename:
+          ownerMeta[owner].remove(m)
+
+    else:
+      raise SystemException()
+    
+  
+
+
+  def isPred(self, lower_bound, key, upper_bound):
+    ## crossover cases
+    if (upper_bound < lower_bound) and (key >= lower_bound):
+      return True
+    elif (upper_bound < lower_bound) and (key <= upper_bound):
+      return True     
+    ##
+
+    elif (upper_bound > lower_bound) and (key >= lower_bound) and (key <= upper_bound):
+      return True
+    else:
+      return False
+       
+
+
+    
+
+
+  def setFingertable(self, node_list):
+    print "THIS IS PORT: " + port_num + " TALKING!"
+    for node in node_list:
+      fingertable.append(node)
+      print "Fingertable[i]" + " = " + str(node.id)
+
+
+  def findPred(self, key):
+    if (myID <= key) and (key <= fingertable[0].id):
+      print "BANDAID!!!!!!"
+      n = NodeID(myID,myIP, int(port_num))
+      return n
+
+
+    for node in range(len(fingertable)-2):
+      if self.isPred(fingertable[node].id, key, fingertable[node+1].id) == True:
+        print "THIS IS RIGHT!" + fingertable[node].id + key + fingertable[node+1].id
+        return fingertable[node]
+
+
+    if key > fingertable[-1].id:
+      print fingertable[-1].ip + " " +str(fingertable[-1].port)
+      transport = TSocket.TSocket(fingertable[-1].ip,fingertable[-1].port)
+      transport = TTransport.TBufferedTransport(transport)
+      print "made a transport!"
+      # Wrap in a protocol
+      protocol = TBinaryProtocol.TBinaryProtocol(transport)
+      # Create a client to use the protocol encoder
+      client = FileStore.Client(protocol)
+      # Connect!
+      transport.open()
+      print key
+      pred = client.findPred(key)
+      print "THIS IS PRED!" + pred
+      transport.close()
+      return pred
+
+
+
+
+  def getNodeSucc(self):
+    print "yo"
+    return fingertable[0]
+ 
+  def findSucc(self, key):
+    pred = self.findPred(key)
+    transport = TSocket.TSocket(pred.ip,pred.port)
+    transport = TTransport.TBufferedTransport(transport)
+    # Wrap in a protocol
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    # Create a client to use the protocol encoder
+    client = FileStore.Client(protocol)
+    # Connect!
+    transport.open()
+    print transport.isOpen()
+    print "after open!"
+    succ = client.getNodeSucc()
+    print "SUCC ISS!!!!!"
+    print  succ
+    return succ 
+      
+
+     
+
+
+  
+handler = FileStoreHandler()
+processor = FileStore.Processor(handler)
+transport = TSocket.TServerSocket(port=port_num)
+tfactory = TTransport.TBufferedTransportFactory()
+pfactory = TBinaryProtocol.TBinaryProtocolFactory()
+
+server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
+
+# You could do one of these for a multithreaded server
+#server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
+#server = TServer.TThreadPoolServer(processor, transport, tfactory, pfactory)
+transport.close()
+print 'Starting the server...'
+server.serve()
+print 'done.'
