@@ -240,9 +240,11 @@ class FileStoreHandler:
   def pushUnownedFiles(self):
     return 0  
   def join(self, nodeID):
-    #ask arbitrary node to set pres
+    #ask arbitrary node to set pred, and fingertable
     if nodeID in self.existing_nodes:
-      nodeID.findPred(self.myID)
+      self.pred = nodeID.findPred(self.myID)
+      for i in range(256):
+        self.updateFinger(i,nodeID.findSucc(self.myID))
     else:
       #first node in network
       for i in range(256):
