@@ -225,7 +225,7 @@ class FileStoreHandler:
     return succ 
       
   def updateFinger(self, index, nodeID):
-    
+    self.fingertable[index] = nodeID
 
   def pullUnownedFiles(self):
     return 0
