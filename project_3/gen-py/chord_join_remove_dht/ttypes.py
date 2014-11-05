@@ -7,7 +7,6 @@
 #
 
 from thrift.Thrift import TType, TMessageType, TException, TApplicationException
-
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol, TProtocol
 try:

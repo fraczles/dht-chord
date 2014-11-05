@@ -1,12 +1,15 @@
 #!/usr/bin/env python
-import sys, glob, os
+
+import sys, glob
 import hashlib, time, socket
 
 sys.path.append('gen-py')
 sys.path.insert(0,glob.glob('/home/yaoliu/src_code/thrift/lib/py/build/lib.*')[0])
 
-from chord_dht import FileStore
-from chord_dht.ttypes import *
+from chord_join_remove_dht import FileStore
+
+
+from chord_join_remove_dht import *
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport
@@ -23,11 +26,8 @@ sha256 = hashlib.sha256()
 sha256.update(ip_port)
 myID = sha256.hexdigest()
 
-print "MY PORT IS: " + port_num + "MY ID IS: " + myID
-
-
-
 class FileStoreHandler:
+  fingertable = []
   def __init__(self):
     self.log = {}
 
@@ -167,28 +167,26 @@ class FileStoreHandler:
 
 
   def setFingertable(self, node_list):
-    print "THIS IS PORT: " + port_num + " TALKING!"
     for node in node_list:
-      fingertable.append(node)
-      print "Fingertable[i]" + " = " + str(node.id)
+      self.fingertable.append(node)
+      
 
 
   def findPred(self, key):
-    if (myID <= key) and (key <= fingertable[0].id):
+    if (myID <= key) and (key <= self.fingertable[0].id):
       print "BANDAID!!!!!!"
       n = NodeID(myID,myIP, int(port_num))
       return n
 
 
-    for node in range(len(fingertable)-2):
-      if self.isPred(fingertable[node].id, key, fingertable[node+1].id) == True:
-        print "THIS IS RIGHT!" + fingertable[node].id + key + fingertable[node+1].id
-        return fingertable[node]
+    for node in range(len(self.fingertable)-2):
+      if self.isPred(self.fingertable[node].id, key, self.fingertable[node+1].id) == True:
+        return self.fingertable[node]
 
 
-    if key > fingertable[-1].id:
-      print fingertable[-1].ip + " " +str(fingertable[-1].port)
-      transport = TSocket.TSocket(fingertable[-1].ip,fingertable[-1].port)
+    if key > self.fingertable[-1].id:
+      print self.fingertable[-1].ip + " " +str(self.fingertable[-1].port)
+      transport = TSocket.TSocket(self.fingertable[-1].ip,self.fingertable[-1].port)
       transport = TTransport.TBufferedTransport(transport)
       print "made a transport!"
       # Wrap in a protocol
@@ -207,8 +205,7 @@ class FileStoreHandler:
 
 
   def getNodeSucc(self):
-    print "yo"
-    return fingertable[0]
+    return self.fingertable[0]
  
   def findSucc(self, key):
     pred = self.findPred(key)
@@ -220,14 +217,20 @@ class FileStoreHandler:
     client = FileStore.Client(protocol)
     # Connect!
     transport.open()
-    print transport.isOpen()
-    print "after open!"
     succ = client.getNodeSucc()
-    print "SUCC ISS!!!!!"
-    print  succ
     return succ 
       
+  def updateFinger(self, index, nodeID):
+    self.fingertable[index] = nodeID
 
+  def pullUnownedFiles(self):
+    return 0
+  def pushUnownedFiles(self):
+    return 0  
+  def join(self, nodeID):
+    return 0
+  def leave(self):
+    return 0
      
 
 

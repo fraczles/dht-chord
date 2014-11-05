@@ -6,8 +6,8 @@ import sys, glob, os, hashlib
 sys.path.append('gen-py')
 sys.path.insert(0,glob.glob('/home/yaoliu/src_code/thrift/lib/py/build/lib.*')[0])
 
-from chord_dht import FileStore
-from chord_dht.ttypes import *
+from chord_join_remote import FileStore
+from chord_join_remote import *
 
 from thrift import Thrift
 from thrift.transport import TSocket
