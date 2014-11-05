@@ -15,10 +15,10 @@ from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
-
-port_num = sys.argv[1]
 ownerMeta = {"":[]}
 ownerFileMeta = {}
+
+port_num = sys.argv[1]
 fingertable = []
 myIP = socket.gethostbyname(socket.gethostname())
 ip_port = myIP + ":" + port_num
@@ -27,6 +27,14 @@ sha256.update(ip_port)
 myID = sha256.hexdigest()
 
 class FileStoreHandler:
+  port_num = sys.argv[1]
+  fingertable = []
+  myIP = socket.gethostbyname(socket.gethostname())
+  ip_port = myIP + ":" + port_num
+  sha256 = hashlib.sha256()
+  sha256.update(ip_port)
+  myID = sha256.hexdigest()
+
   myNode = NodeID(myID,myIP,port_num,0)
   existing_nodes = []
   pred = NodeID("0","0",0,0)
@@ -179,8 +187,8 @@ class FileStoreHandler:
   def findPred(self, key):
 
     #If key exists btwn current node and successor(current node)
-    if (myID <= key) and (key <= self.fingertable[0].id):
-      n = NodeID(myID,myIP, int(port_num))
+    if (self.myID <= key) and (key <= self.fingertable[0].id):
+      n = NodeID(self.myID,myIP, int(port_num))
       return n
 
     #If pred exists in fingertable
@@ -232,13 +240,14 @@ class FileStoreHandler:
   def pushUnownedFiles(self):
     return 0  
   def join(self, nodeID):
+    #ask arbitrary node to set pres
     if nodeID in self.existing_nodes:
-
+      nodeID.findPred(self.myID)
     else:
       #first node in network
       for i in range(256):
         self.updateFinger(i,self.myNode)
-    
+      self.pred = self.myNode
     
 
     return 0
