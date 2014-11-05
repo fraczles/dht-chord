@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from optparse import OptionParser
 import sys, glob, os, hashlib
 #./client ipaddress 9090 --operation read --filename example.txt --user guest
@@ -7,15 +8,12 @@ sys.path.append('gen-py')
 sys.path.insert(0,glob.glob('/home/yaoliu/src_code/thrift/lib/py/build/lib.*')[0])
 
 from chord_join_remote import FileStore
-from chord_join_remote import *
+from chord_join_remote.ttypes import *
 
 from thrift import Thrift
 from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol, TJSONProtocol
-
-
-
 #1 - local host
 #2 - port
 #3 - --operation
@@ -24,9 +22,6 @@ from thrift.protocol import TBinaryProtocol, TJSONProtocol
 #6 - filename
 #7 - --user
 #8 - username
-
-
-
 parser = OptionParser()
 parser.add_option("--operation",action="store", dest = "operation")
 parser.add_option("--filename",action="store", dest ="filename")
@@ -34,16 +29,10 @@ parser.add_option("--user", action="store", dest="user")
 (options, args) = parser.parse_args()
 
 
-
-
 host = sys.argv[1]
 port = int(sys.argv[2])                  
 
 try:
-
-
-
-
   # Make socket
   transport = TSocket.TSocket(host, port)
 

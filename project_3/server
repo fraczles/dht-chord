@@ -9,7 +9,7 @@ sys.path.insert(0,glob.glob('/home/yaoliu/src_code/thrift/lib/py/build/lib.*')[0
 from chord_join_remove_dht import FileStore
 
 
-from chord_join_remove_dht import *
+from chord_join_remove_dht.ttypes import *
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport
@@ -27,6 +27,10 @@ sha256.update(ip_port)
 myID = sha256.hexdigest()
 
 class FileStoreHandler:
+  myNode = NodeID(myID,myIP,port_num,0)
+  existing_nodes = []
+  pred = NodeID("0","0",0,0)
+  succ = NodeID("0","0",0,0)
   fingertable = []
   def __init__(self):
     self.log = {}
@@ -173,22 +177,22 @@ class FileStoreHandler:
 
 
   def findPred(self, key):
+
+    #If key exists btwn current node and successor(current node)
     if (myID <= key) and (key <= self.fingertable[0].id):
-      print "BANDAID!!!!!!"
       n = NodeID(myID,myIP, int(port_num))
       return n
 
-
+    #If pred exists in fingertable
     for node in range(len(self.fingertable)-2):
       if self.isPred(self.fingertable[node].id, key, self.fingertable[node+1].id) == True:
         return self.fingertable[node]
 
-
-    if key > self.fingertable[-1].id:
-      print self.fingertable[-1].ip + " " +str(self.fingertable[-1].port)
+    #recursively find pred if key is beyond scope of fingers
+    if key > self.fingertable[-1].id:    
       transport = TSocket.TSocket(self.fingertable[-1].ip,self.fingertable[-1].port)
       transport = TTransport.TBufferedTransport(transport)
-      print "made a transport!"
+  
       # Wrap in a protocol
       protocol = TBinaryProtocol.TBinaryProtocol(transport)
       # Create a client to use the protocol encoder
@@ -199,7 +203,7 @@ class FileStoreHandler:
       pred = client.findPred(key)
       print "THIS IS PRED!" + pred
       transport.close()
-      return pred
+      #return pred
 
 
 
@@ -221,13 +225,22 @@ class FileStoreHandler:
     return succ 
       
   def updateFinger(self, index, nodeID):
-    self.fingertable[index] = nodeID
+    
 
   def pullUnownedFiles(self):
     return 0
   def pushUnownedFiles(self):
     return 0  
   def join(self, nodeID):
+    if nodeID in self.existing_nodes:
+
+    else:
+      #first node in network
+      for i in range(256):
+        self.updateFinger(i,self.myNode)
+    
+    
+
     return 0
   def leave(self):
     return 0
