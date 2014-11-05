@@ -15,7 +15,13 @@ from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
+def hexStr_to_int(hex_str):
+  return int(hex_str,16)
 
+def int_to_hexStr(num):
+  string = str(num).lstrip('0x')
+  string = string.rstrip('L')
+  return string
 
 class FileStoreHandler:
   ownerMeta = {"":[]}
@@ -198,6 +204,10 @@ class FileStoreHandler:
 
 
 
+  
+
+
+
 
   def getNodeSucc(self):
     return self.fingertable[0]
@@ -227,7 +237,7 @@ class FileStoreHandler:
     if nodeID in self.existing_nodes:
       self.pred = nodeID.findPred(self.myID)
       for i in range(256):
-        self.updateFinger(i,nodeID.findSucc(self.myID))
+        self.updateFinger(i,nodeID.findSucc(int_to_hexStr(hexStr_to_int(self.myID)+2**i)))
     else:
       #first node in network
       for i in range(256):
