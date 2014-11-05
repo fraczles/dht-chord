@@ -19,28 +19,28 @@ from thrift.server import TServer
 
 
 
-
-
-
-ownerMeta = {"":[]}
-ownerFileMeta = {}
-port_num = sys.argv[1]
 fingertable = [None]*256
-  
-  
-
 myIP = socket.gethostbyname(socket.gethostname())
-ip_port = myIP + ":" + port_num
-sha256 = hashlib.sha256()
-sha256.update(ip_port)
-myID = sha256.hexdigest()
-
-myNode = NodeID(myID,myIP,port_num,0)
-existing_nodes = []
-pred = NodeID("0","0",0,0)
-succ = NodeID("0","0",0,0)
-
 port_num = sys.argv[1]
+ip_port = self.myIP + ":" + self.port_num
+
+
+sha256 = hashlib.sha256()
+sha256.update(self.ip_port)
+myID = sha256.hexdigest()
+myID = myID
+myNode = NodeID(self.myID,self.myIP,int(self.port_num),0)
+ownerFileMeta = {}
+ownerMeta = {"":[]}
+count = 0
+for i in range(256):
+  self.updateFinger(i,self.myNode)
+pred = myNode
+for i in range(256):
+  print self.fingertable[i].port
+
+
+
 def hexStr_to_int(hex_str):
   return int(hex_str,16)
 
@@ -50,34 +50,10 @@ def int_to_hexStr(num):
   return string
 
 class FileStoreHandler:
-  ownerMeta = {"":[]}
-  ownerFileMeta = {}
-  port_num = sys.argv[1]
-  fingertable = [None]*256
   
-  
-
-  myIP = socket.gethostbyname(socket.gethostname())
-  ip_port = myIP + ":" + port_num
-  sha256 = hashlib.sha256()
-  sha256.update(ip_port)
-  myID = sha256.hexdigest()
-
-  myNode = NodeID(myID,myIP,port_num,0)
-  existing_nodes = []
-  pred = NodeID("0","0",0,0)
-  succ = NodeID("0","0",0,0)
-
   def __init__(self):
     self.log = {}
-    self.fingertable = fingertable
-    self.myIP = myIP
-    self.myID = myID
-    self.myNode = myNode
-    self.pred = pred
-    self.existing_nodes = existing_nodes
-
-
+    
 
   def listOwnedFiles(self, user):
     return self.ownerMeta[user]     
@@ -198,14 +174,6 @@ class FileStoreHandler:
     else:
       return False
        
-
-
-    
-
-
-  def setFingertable(self, node_list):
-    for node in node_list:
-      self.fingertable.append(node)
       
 
 
@@ -213,7 +181,7 @@ class FileStoreHandler:
 
     #If key exists btwn current node and successor(current node)
     if (self.myID <= key) and (key <= self.fingertable[0].id):
-      n = NodeID(self.myID,myIP, int(port_num))
+      n = self.myNode
       return n
 
     #If pred exists in fingertable
@@ -264,7 +232,6 @@ class FileStoreHandler:
     return succ 
       
   def updateFinger(self, idx, nodeId):
-    print "index is " + str(idx)
     self.fingertable[idx] = nodeId
 
   def pullUnownedFiles(self):
@@ -275,40 +242,49 @@ class FileStoreHandler:
 
 
   def join(self, nodeID):
+    #set fingertable
+
+    for i in range(256):
+      self.updateFinger(i,nodeID.findSucc(int_to_hexStr(hexStr_to_int(self.myID)+2**i)))
     #ask arbitrary node to set pred, and fingertable
-    if nodeID in self.existing_nodes:
-      
-      self.pred = nodeID.findPred(self.myID)
+    self.pred = self.findPred(self.myID)
+
+    #check affected fingertables    
+    start = self.findPred(myID)
+    while(start != self):
       for i in range(256):
-        self.updateFinger(i,nodeID.findSucc(int_to_hexStr(hexStr_to_int(self.myID)+2**i)))
-      
-    else:
-      #first node in network
-      for i in range(256):
-        self.updateFinger(i,self.myNode)
-      self.pred = self.myNode
+        if hexStr_to_int(p.fingertable[i]) in xrange(hexStr_to_int(self.pred.id)+1, hexStr_to_int(self.myID)+1):
+          p.fingertable[i] = self.myNode
 
-      print self.fingertable
+    
+
+
+          
 
 
 
+
+
+    print str(self.count) + " NEW NODES IN THE NETWORK"
 
 
 
 
   def leave(self):
     return 0
-     
+    
 
 
   
 handler = FileStoreHandler()
 processor = FileStore.Processor(handler)
-transport = TSocket.TServerSocket(port=port_num)
+transport = TSocket.TServerSocket(port=sys.argv[1])
 tfactory = TTransport.TBufferedTransportFactory()
 pfactory = TBinaryProtocol.TBinaryProtocolFactory()
-
 server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
+
+
+
 
 # You could do one of these for a multithreaded server
 #server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
