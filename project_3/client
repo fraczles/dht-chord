@@ -7,8 +7,8 @@ import sys, glob, os, hashlib
 sys.path.append('gen-py')
 sys.path.insert(0,glob.glob('/home/yaoliu/src_code/thrift/lib/py/build/lib.*')[0])
 
-from chord_join_remote import FileStore
-from chord_join_remote.ttypes import *
+from chord_join_remove_dht import FileStore
+from chord_join_remove_dht.ttypes import *
 
 from thrift import Thrift
 from thrift.transport import TSocket
@@ -71,10 +71,15 @@ try:
   #r.meta.filename = options.filename
   key = hashlib.sha256(options.filename+":"+options.user)
   key = str(key.hexdigest())
+  ID = hashlib.sha256(host+":"+str(port))
+  ID = str(ID.hexdigest())
 
   #except:
    # print "stuff"
- 
+
+  client.join(NodeID(str(ID),host,port))
+
+
   if options.operation == "write":
   
     fObj = open(fIn, 'r')      
