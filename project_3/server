@@ -15,18 +15,11 @@ from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
-ownerMeta = {"":[]}
-ownerFileMeta = {}
 
-port_num = sys.argv[1]
-fingertable = []
-myIP = socket.gethostbyname(socket.gethostname())
-ip_port = myIP + ":" + port_num
-sha256 = hashlib.sha256()
-sha256.update(ip_port)
-myID = sha256.hexdigest()
 
 class FileStoreHandler:
+  ownerMeta = {"":[]}
+  ownerFileMeta = {}
   port_num = sys.argv[1]
   fingertable = []
   myIP = socket.gethostbyname(socket.gethostname())
@@ -45,7 +38,7 @@ class FileStoreHandler:
 
 
   def listOwnedFiles(self, user):
-    return ownerMeta[user]     
+    return self.ownerMeta[user]     
 
 
   def writeFile(self, rFile):
@@ -55,27 +48,27 @@ class FileStoreHandler:
     
     
 
-    if index in ownerFileMeta:
+    if index in self.ownerFileMeta:
       #filename
-      fname = ownerFileMeta[index].meta.filename
+      fname = self.ownerFileMeta[index].meta.filename
     
       #created
-      created = ownerFileMeta[index].meta.created
+      created = self.ownerFileMeta[index].meta.created
 
       #updated
       updated = time.time()
 
       #deleted
-      deleted = ownerFileMeta[index].meta.deleted      
+      deleted = self.ownerFileMeta[index].meta.deleted      
 
       #version
-      version = ownerFileMeta[index].meta.version + 1
+      version = self.ownerFileMeta[index].meta.version + 1
 
       #owner
-      owner = ownerFileMeta[index].meta.owner
+      owner = self.ownerFileMeta[index].meta.owner
 
       #content length
-      contentLength = ownerFileMeta[index].meta.contentLength
+      contentLength = self.ownerFileMeta[index].meta.contentLength
 
       #hash
       contentHash = h
@@ -84,8 +77,8 @@ class FileStoreHandler:
       c = rFile.content
       r = RFile(m,c)
       name = index[0]
-      ownerFileMeta[index] = r
-      ownerMeta[name].append(ownerFileMeta[index].meta)
+      self.ownerFileMeta[index] = r
+      self.ownerMeta[name].append(ownerFileMeta[index].meta)
 
     else:
        #filename
@@ -115,28 +108,18 @@ class FileStoreHandler:
       m = RFileMetadata(fname, created, updated, deleted, version, owner, contentLength, contentHash)
       c = rFile.content
       r = RFile(m,c)
-      ownerFileMeta[index] = r
+      self.ownerFileMeta[index] = r
       
       name = index[0]
-      if name not in ownerMeta:
-        ownerMeta[name] = [m]
+      if name not in self.ownerMeta:
+        self.ownerMeta[name] = [m]
       else:
-        ownerMeta[name].append(m)
-      
-
-      
-    
-    
-    #print "user is: " + index[0]
-    #print "owner meta at " + index[0] + " is: " + ownerMeta[index[0]]
-    
-
+        self.ownerMeta[name].append(m)
 
   def readFile(self, filename, owner):
     index = owner, filename
-    if index in ownerFileMeta:
-      r = ownerFileMeta[index]
-      print r  
+    if index in self.ownerFileMeta:
+      r = self.ownerFileMeta[index]
       return r
     else:
       raise SystemException()
@@ -147,12 +130,12 @@ class FileStoreHandler:
 
   def deleteFile(self, filename, owner):
     index = owner, filename
-    if index in ownerFileMeta:
-      ownerFileMeta[index].meta.deleted = time.time()
-      del ownerFileMeta[index]
-      for m in ownerMeta[owner]:
+    if index in self.ownerFileMeta:
+      self.ownerFileMeta[index].meta.deleted = time.time()
+      del self.ownerFileMeta[index]
+      for m in self.ownerMeta[owner]:
         if m.filename == filename:
-          ownerMeta[owner].remove(m)
+          self.ownerMeta[owner].remove(m)
 
     else:
       raise SystemException()
