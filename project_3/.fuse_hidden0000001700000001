@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #YO
-import sys, glob, operator
+import sys, glob
 import hashlib, time, socket
 
 sys.path.append('gen-py')
@@ -23,7 +23,7 @@ fingertable = [None]*256
 myIP = socket.gethostbyname(socket.gethostname())
 port_num = sys.argv[1]
 ip_port = myIP + ":" + port_num
-succ = None
+
 
 sha256 = hashlib.sha256()
 sha256.update(ip_port)
@@ -37,16 +37,9 @@ for i in range(256):
   fingertable[i] = myNode
 pred = myNode
 
-def myxrange(start, stop):
-   i = start
-   while i < stop:
-       yield i
-       i += 1
 
 
-print myNode.port
-print myNode.ip
-def isBtwn(lower_bound, key, upper_bound):
+def isPred(self, lower_bound, key, upper_bound):
     ## crossover cases
     if (upper_bound < lower_bound) and (key >= lower_bound):
       return True
@@ -179,7 +172,7 @@ class FileStoreHandler:
   
 
 
-  def isBtwn(self, lower_bound, key, upper_bound):
+  def isPred(self, lower_bound, key, upper_bound):
     ## crossover cases
     if (upper_bound < lower_bound) and (key >= lower_bound):
       return True
@@ -196,6 +189,8 @@ class FileStoreHandler:
 
 
   def findPred(self, key):
+    print "am i in here pred"
+    print key
     #If key exists btwn current node and successor(current node)
 
     same = fingertable[0];
@@ -206,6 +201,8 @@ class FileStoreHandler:
         only_one = False
 
     if only_one: 
+      print "only one"
+      print myNode
       return myNode
 
     if (myID <= key) and (key <= fingertable[0].id):
@@ -213,7 +210,7 @@ class FileStoreHandler:
 
     #If pred exists in fingertable
     for node in range(len(fingertable)-2):
-      if isBtwn(fingertable[node].id, key, fingertable[node+1].id) == True:
+      if isPred(fingertable[node].id, key, fingertable[node+1].id) == True:
         return fingertable[node]
 
     #recursively find pred if key is beyond scope of fingers
@@ -227,7 +224,9 @@ class FileStoreHandler:
       client = FileStore.Client(protocol)
       # Connect!
       transport.open()
+      print key
       pred = client.findPred(key)
+      print "THIS IS PRED!" + pred
       transport.close()
       return pred
 
@@ -239,10 +238,15 @@ class FileStoreHandler:
 
 
   def getNodeSucc(self):
+    print "node: " + str(myNode.port) + " in getNodeSucc"
     return fingertable[0]
  
   def findSucc(self, key):
+    
+    print "in find succ"
     pred = self.findPred(key)
+    print pred
+    print "past findPred"
     if pred.id != myID:
       
       transport = TSocket.TSocket(pred.ip,pred.port)
@@ -254,6 +258,8 @@ class FileStoreHandler:
       transport.close()
       return succ
     else:
+      print "node: " + str(myNode.port) + " in findSucc"
+      print fingertable[0]
       succ = self.getNodeSucc()
     return succ
 
@@ -288,56 +294,40 @@ class FileStoreHandler:
     client = FileStore.Client(protocol)
     # Connect!
     transport.open()
-    #TODO: Special case
-    nFT = client.getFingertable()
-    pred = client.findPred(myID)
-
-
-    for i in range(256):
-      n = int_to_hexStr(hexStr_to_int(myID)+(2**i))
-      self.updateFinger(i,client.findSucc(n))
+    num = int_to_hexStr(hexStr_to_int(myID)+1)
+    n = client.findSucc(num)
     transport.close()
-
-    transport = TSocket.TSocket(fingertable[0].ip, fingertable[0].port)
-    # Buffering is critical. Raw sockets are very slow
-    transport = TTransport.TBufferedTransport(transport)
-    # Wrap in a protocol
-    protocol = TBinaryProtocol.TBinaryProtocol(transport)
-    # Create a client to use the protocol encoder
-    client = FileStore.Client(protocol)
-    # Connect!
-
-    #set pred's
-    transport.open()
-    client.setNodePred(myNode)
-    transport.close()
+    return None
+    # fingertable[0] = n
+    # transport_1.close()
+    # print n
+    # for i in range(256):
+      
+    #   n = client.findSucc()
+    #   self.updateFinger(i,client.findSucc(n))
 
 
+    # transport.close()
+    # pred = self.setNodePred(nodeID.pred)
+    # nodeID.pred = self.findPred(nodeID.id)
+    # start = nodeID
 
 
-
-   
-    start = nodeID
-    #check affected fingertables    
-    while(start.id != myID):
-      transport = TSocket.TSocket(start.ip,start.port)
-      transport = TTransport.TBufferedTransport(transport)
-      protocol = TBinaryProtocol.TBinaryProtocol(transport)
-      client = FileStore.Client(protocol)
-      transport.open()
-      for i in range(256):
-        a = (hexStr_to_int(start.id)+2**i)%long(2**256)
-        begin = hexStr_to_int(pred.id)+1
-        end = hexStr_to_int(myID)+1        
-        if isBtwn(begin,a,end):
-          client.updateFinger(i, myNode)
-
-
-      #start = successor
-      fTin = client.getFingertable()
-      start = client.getFingertable()[0]
-      transport.close()
-    print fingertable
+    
+    # #check affected fingertables    
+    # while(start.id != myID):
+    #   print "am i in here"
+    #   for i in range(256):
+    #     if hexStr_to_int(start.fingertable[i]) in xrange(hexStr_to_int(pred.id)+1, hexStr_to_int(myID)+1):
+    #       transport = TSocket.TSocket(start.ip,start.port)
+    #       transport = TTransport.TBufferedTransport(transport)
+    #       protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    #       client = FileStore.Client(protocol)
+    #       transport.open()
+    #       client.updateFinger(i, myNode)
+    #       transport.close()
+    #   start = start.pred
+    # print fingertable
 
 
 

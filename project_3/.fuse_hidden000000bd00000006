@@ -46,7 +46,7 @@ def myxrange(start, stop):
 
 print myNode.port
 print myNode.ip
-def isBtwn(lower_bound, key, upper_bound):
+def isPred(self, lower_bound, key, upper_bound):
     ## crossover cases
     if (upper_bound < lower_bound) and (key >= lower_bound):
       return True
@@ -179,7 +179,7 @@ class FileStoreHandler:
   
 
 
-  def isBtwn(self, lower_bound, key, upper_bound):
+  def isPred(self, lower_bound, key, upper_bound):
     ## crossover cases
     if (upper_bound < lower_bound) and (key >= lower_bound):
       return True
@@ -213,7 +213,7 @@ class FileStoreHandler:
 
     #If pred exists in fingertable
     for node in range(len(fingertable)-2):
-      if isBtwn(fingertable[node].id, key, fingertable[node+1].id) == True:
+      if isPred(fingertable[node].id, key, fingertable[node+1].id) == True:
         return fingertable[node]
 
     #recursively find pred if key is beyond scope of fingers
@@ -326,16 +326,13 @@ class FileStoreHandler:
       client = FileStore.Client(protocol)
       transport.open()
       for i in range(256):
-        a = (hexStr_to_int(start.id)+2**i)%long(2**256)
-        begin = hexStr_to_int(pred.id)+1
-        end = hexStr_to_int(myID)+1        
-        if isBtwn(begin,a,end):
+        
+        if (hexStr_to_int(start.id)+2**i)%long(2**256) >= hexStr_to_int(pred.id)+1 and
+            hexStr_to_int(start.id)+2**i)%long(2**256) < hexStr_to_int(myID)+1):
+
           client.updateFinger(i, myNode)
-
-
       #start = successor
-      fTin = client.getFingertable()
-      start = client.getFingertable()[0]
+      start = client.getFingertable[0]
       transport.close()
     print fingertable
 

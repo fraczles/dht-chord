@@ -29,12 +29,15 @@ parser.add_option("--user", action="store", dest="user")
 (options, args) = parser.parse_args()
 
 
+
+
+
 host = sys.argv[1]
 port = int(sys.argv[2])                  
-
+print port
 try:
   # Make socket
-  transport = TSocket.TSocket(host, port)
+  transport = TSocket.TSocket(host, 9192)
 
   # Buffering is critical. Raw sockets are very slow
   transport = TTransport.TBufferedTransport(transport)
@@ -79,9 +82,14 @@ try:
 
 
 
-  
-  client.join(NodeID(str(ID),host,port))
-
+  n1 = NodeID(ID,"128.226.180.172", 9191, 0)
+  # transport2 = TSocket.TSocket(host,9192)
+  # transport2 = TTransport.TBufferedTransport(transport2)
+  # protocol = TBinaryProtocol.TBinaryProtocol(transport2)
+  # client2 = FileStore.Client(protocol)
+  # transport2.open()
+  client.join(n1)
+  transport.close()
 
   if options.operation == "write":
   
