@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-
+#yo
+#hi
 from optparse import OptionParser
 import sys, glob, os, hashlib
 #./client ipaddress 9090 --operation read --filename example.txt --user guest
@@ -74,7 +75,7 @@ try:
   #r.meta.filename = options.filename
   key = hashlib.sha256(options.filename+":"+options.user)
   key = str(key.hexdigest())
-  ID = hashlib.sha256(host+":"+str(port))
+  ID = hashlib.sha256(host+":"+"9191")
   ID = str(ID.hexdigest())
 
   #except:
@@ -89,17 +90,37 @@ try:
   # client2 = FileStore.Client(protocol)
   # transport2.open()
   client.join(n1)
+  #client.remove()
   transport.close()
+  transport.open()
+
+
+  transport = TSocket.TSocket(host, port)
+  # Buffering is critical. Raw sockets are very slow
+  transport = TTransport.TBufferedTransport(transport)
+  # Wrap in a protocol
+  protocol = TBinaryProtocol.TBinaryProtocol(transport)
+  jsonproto = TJSONProtocol.TJSONProtocol(transport)
+  # Create a client to use the protocol encoder
+  client = FileStore.Client(protocol)
+  # Connect!
+  transport.open()
+  
 
   if options.operation == "write":
-  
+
+    print "1"
     fObj = open(fIn, 'r')      
     c = fObj.read()
     r = RFile(m,c)
     r.meta.owner = options.user
     r.meta.filename = options.filename
     #proj2
+    print "2"
+    print "KEY IS", key
     succ = client.findSucc(key)
+    print "3"
+    print "SUCC IS", succ.port
     transport.close()
     #proj1
     transport_write = TSocket.TSocket(succ.ip,succ.port) 
@@ -108,16 +129,19 @@ try:
     json_protocol_write = TJSONProtocol.TJSONProtocol(transport_write)
     transport_write.open()
     retClient = FileStore.Client(protocol_write)
+    print "SUCC IP:PORT", succ.ip, succ.port
     retClient.writeFile(r)
+    print "4 -- prolly worked"
     transport_write.close()
+    transport.close()
+
     
 
   elif options.operation == "read":
-    #proj2
+    
+    transport.open()
     succ = client.findSucc(key)
     transport.close()
-    #proj1
-
     transport_read = TSocket.TSocket(succ.ip,succ.port)
     transport_read = TTransport.TBufferedTransport(transport_read)
     protocol_read = TBinaryProtocol.TBinaryProtocol(transport_read)
@@ -126,10 +150,17 @@ try:
     try:
       retClient = FileStore.Client(protocol_read)
     except:
-      raise SystemException
-    retVal = retClient.readFile(options.filename, options.user)
-    retVal.write(prot)
-    print buff.getvalue()
+      print buff.getvalue()
+    try:
+      retVal = retClient.readFile(options.filename, options.user)
+      retVal.write(prot)
+      print buff.getvalue()
+    except SystemException:
+      retVal = retClient.readFile(options.filename, options.user)
+      retVal.write(prot)
+      print buff.getvalue()
+
+
   
 
   elif options.operation == "delete":

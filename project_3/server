@@ -19,23 +19,23 @@ from thrift.server import TServer
 
 
 
-fingertable = [None]*256
-myIP = socket.gethostbyname(socket.gethostname())
-port_num = sys.argv[1]
-ip_port = myIP + ":" + port_num
-succ = None
+# fingertable = [None]*256
+# myIP = socket.gethostbyname(socket.gethostname())
+# port_num = sys.argv[1]
+# ip_port = myIP + ":" + port_num
+# succ = None
 
-sha256 = hashlib.sha256()
-sha256.update(ip_port)
-myID = sha256.hexdigest()
-myID = myID
-myNode = NodeID(myID,myIP,int(port_num),0)
-ownerFileMeta = {}
-ownerMeta = {"":[]}
-count = 0
-for i in range(256):
-  fingertable[i] = myNode
-pred = myNode
+# sha256 = hashlib.sha256()
+# sha256.update(ip_port)
+# myID = sha256.hexdigest()
+# myID = myID
+# self.myNode = NodeID(myID,myIP,int(port_num),0)
+# ownerFileMeta = {}
+# ownerMeta = {"":[]}
+# count = 0
+# for i in range(256):
+#   fingertable[i] = self.myNode
+# pred = self.myNode
 
 def myxrange(start, stop):
    i = start
@@ -44,8 +44,9 @@ def myxrange(start, stop):
        i += 1
 
 
-print myNode.port
-print myNode.ip
+
+
+
 def isBtwn(lower_bound, key, upper_bound):
     ## crossover cases
     if (upper_bound < lower_bound) and (key >= lower_bound):
@@ -71,40 +72,58 @@ class FileStoreHandler:
   
   def __init__(self):
     self.log = {}
+    self.myIP = socket.gethostbyname(socket.gethostname())
+    self.fingertable = [None]*256
+    self.port = sys.argv[1]
+    self.ip_port = self.myIP + ":" + self.port
+    sha256 = hashlib.sha256()
+    sha256.update(self.ip_port)
+    self.myID = sha256.hexdigest()
+    self.myID = self.myID
+    self.myNode = NodeID(self.myID,self.myIP,int(self.port),0)
+    self.pred = self.myNode
+    self.ownerFileMeta = {}
+    self.ownerMeta = {"":[]}
+    for i in range(256):
+      self.fingertable[i] = self.myNode
+    self.pred = self.myNode
+
+    
     
 
   def listOwnedFiles(self, user):
-    return ownerMeta[user]     
+    return self.ownerMeta[user]     
 
 
   def writeFile(self, rFile):
     index = rFile.meta.owner,rFile.meta.filename
     h = hashlib.sha256(rFile.content)
     h = str(h.hexdigest())
-    
-    
 
-    if index in ownerFileMeta:
+    print "WRITING", rFile.meta.filename, "TO NODE", self.myID
+
+
+    if index in self.ownerFileMeta:
       #filename
-      fname = ownerFileMeta[index].meta.filename
+      fname = self.ownerFileMeta[index].meta.filename
     
       #created
-      created = ownerFileMeta[index].meta.created
+      created = self.ownerFileMeta[index].meta.created
 
       #updated
       updated = time.time()
 
       #deleted
-      deleted = ownerFileMeta[index].meta.deleted      
+      deleted = self.ownerFileMeta[index].meta.deleted      
 
       #version
-      version = ownerFileMeta[index].meta.version + 1
+      version = self.ownerFileMeta[index].meta.version + 1
 
       #owner
-      owner = ownerFileMeta[index].meta.owner
+      owner = self.ownerFileMeta[index].meta.owner
 
       #content length
-      contentLength = ownerFileMeta[index].meta.contentLength
+      contentLength = self.ownerFileMeta[index].meta.contentLength
 
       #hash
       contentHash = h
@@ -113,8 +132,8 @@ class FileStoreHandler:
       c = rFile.content
       r = RFile(m,c)
       name = index[0]
-      ownerFileMeta[index] = r
-      ownerMeta[name].append(ownerFileMeta[index].meta)
+      self.ownerFileMeta[index] = r
+      self.ownerMeta[name].append(self.ownerFileMeta[index].meta)
 
     else:
        #filename
@@ -144,34 +163,39 @@ class FileStoreHandler:
       m = RFileMetadata(fname, created, updated, deleted, version, owner, contentLength, contentHash)
       c = rFile.content
       r = RFile(m,c)
-      ownerFileMeta[index] = r
+      self.ownerFileMeta[index] = r
       
       name = index[0]
-      if name not in ownerMeta:
-        ownerMeta[name] = [m]
+      if name not in self.ownerMeta:
+        self.ownerMeta[name] = [m]
       else:
-        ownerMeta[name].append(m)
+        self.ownerMeta[name].append(m)
+    print "MY WRITTEN FILE!", self.ownerFileMeta[index]
 
   def readFile(self, filename, owner):
     index = owner, filename
-    if index in ownerFileMeta:
-      r = ownerFileMeta[index]
+    print "INDEX IS:", index
+    print "MY ID IS:", self.myID
+
+    if index in self.ownerFileMeta:
+      print "INDEX IS IN OWNERFILEMETA"
+      r = self.ownerFileMeta[index]
+      print r
       return r
     else:
-      raise SystemException()
-      return "Error"
+      raise SystemException("Failed to find file")
 
 
 
 
   def deleteFile(self, filename, owner):
     index = owner, filename
-    if index in ownerFileMeta:
-      ownerFileMeta[index].meta.deleted = time.time()
-      del ownerFileMeta[index]
-      for m in ownerMeta[owner]:
+    if index in self.ownerFileMeta:
+      self.ownerFileMeta[index].meta.deleted = time.time()
+      del self.ownerFileMeta[index]
+      for m in self.ownerMeta[owner]:
         if m.filename == filename:
-          ownerMeta[owner].remove(m)
+          self.ownerMeta[owner].remove(m)
 
     else:
       raise SystemException()
@@ -198,27 +222,37 @@ class FileStoreHandler:
   def findPred(self, key):
     #If key exists btwn current node and successor(current node)
 
-    same = fingertable[0];
-
-    only_one = True
-    for x in range(256):
-      if fingertable[x].id != same.id:
-        only_one = False
+    first = self.fingertable[0];
+    #1 node
+    only_one = False
+    only_two = False
+    if first.id == self.pred.id and self.myID == first.id:
+      only_one = True
 
     if only_one: 
-      return myNode
+      return self.myNode
 
-    if (myID <= key) and (key <= fingertable[0].id):
-      return myNode
 
-    #If pred exists in fingertable
-    for node in range(len(fingertable)-2):
-      if isBtwn(fingertable[node].id, key, fingertable[node+1].id) == True:
-        return fingertable[node]
+
+    #2 nodes
+    if first.id == self.pred.id:
+      only_two = True
+    if only_two:
+      if key >= self.myID:
+        return self.myNode
+      else:
+        return self.pred
+    if (self.myID <= key) and (key <= self.fingertable[0].id):
+      return self.myNode
+
+    #If pred exists in self.fingertable
+    for node in range(len(self.fingertable)-2):
+      if isBtwn(self.fingertable[node].id, key, self.fingertable[node+1].id) == True:
+        return self.fingertable[node]
 
     #recursively find pred if key is beyond scope of fingers
-    if key > fingertable[-1].id:    
-      transport = TSocket.TSocket(fingertable[-1].ip,fingertable[-1].port)
+    if key > self.fingertable[-1].id:    
+      transport = TSocket.TSocket(self.fingertable[-1].ip,self.fingertable[-1].port)
       transport = TTransport.TBufferedTransport(transport)
   
       # Wrap in a protocol
@@ -227,9 +261,9 @@ class FileStoreHandler:
       client = FileStore.Client(protocol)
       # Connect!
       transport.open()
-      pred = client.findPred(key)
+      ret = client.findPred(key)
       transport.close()
-      return pred
+      return 
 
 
 
@@ -239,22 +273,31 @@ class FileStoreHandler:
 
 
   def getNodeSucc(self):
-    return fingertable[0]
+    print "in getNodeSucc"
+    return self.fingertable[0]
  
   def findSucc(self, key):
-    pred = self.findPred(key)
-    if pred.id != myID:
-      
-      transport = TSocket.TSocket(pred.ip,pred.port)
-      transport = TTransport.TBufferedTransport(transport)
-      protocol = TBinaryProtocol.TBinaryProtocol(transport)
-      client = FileStore.Client(protocol)
-      transport.open()
-      succ = client.getNodeSucc()
-      transport.close()
-      return succ
+    print key
+    foundPred = self.findPred(key)
+    # 1 node
+    if self.pred.id != self.myID:
+      # 2 nodes
+      if self.pred.id != self.fingertable[0].id:
+        transport = TSocket.TSocket(foundPred.ip,foundPred.port)
+        transport = TTransport.TBufferedTransport(transport)
+        protocol = TBinaryProtocol.TBinaryProtocol(transport)
+        client = FileStore.Client(protocol)
+        transport.open()
+        succ = client.getNodeSucc()
+        transport.close()
+        return succ
+      else:
+        print "good fix?"
+        return self.myNode
+        
     else:
       succ = self.getNodeSucc()
+      return succ
     return succ
 
 
@@ -262,19 +305,30 @@ class FileStoreHandler:
     
       
   def getFingertable(self):
-    return fingertable
+    return self.fingertable
       
   def setNodePred(self,nodeId):
-    pred = nodeId
+    self.pred= nodeId
 
   def updateFinger(self, idx, nodeId):
-    fingertable[idx] = nodeId
+    self.fingertable[idx] = nodeId
 
   def pullUnownedFiles(self):
-    return 0
-  def pushUnownedFiles(self):
-    return 0  
-
+    retList = []
+    delList = []
+    for key, value in self.ownerFileMeta.iteritems():
+      fHash = hashlib.sha256(value.meta.filename+":"+value.meta.owner)
+      fHash = str(fHash.hexdigest())
+      if isBtwn(self.findPred(self.pred).id, fHash, self.pred.id):
+        retList.append(value)
+        delList.append([key[1],key[0]])
+    for item in range(len(delList)):
+      self.deleteFile(delList[item][0],delList[item][1])
+    return retList
+    
+  def pushUnownedFiles(self, listIn):
+    for f in listIn:
+      self.writeFile(f)
 
 
   def join(self, nodeID):
@@ -288,17 +342,17 @@ class FileStoreHandler:
     client = FileStore.Client(protocol)
     # Connect!
     transport.open()
-    #TODO: Special case
-    nFT = client.getFingertable()
-    pred = client.findPred(myID)
+    #TODO: Special cases
+    self.pred = client.findPred(self.myID)
+    
 
 
     for i in range(256):
-      n = int_to_hexStr(hexStr_to_int(myID)+(2**i))
+      n = int_to_hexStr(hexStr_to_int(self.myID)+(2**i)%long(2**256))
       self.updateFinger(i,client.findSucc(n))
     transport.close()
 
-    transport = TSocket.TSocket(fingertable[0].ip, fingertable[0].port)
+    transport = TSocket.TSocket(self.fingertable[0].ip, self.fingertable[0].port)
     # Buffering is critical. Raw sockets are very slow
     transport = TTransport.TBufferedTransport(transport)
     # Wrap in a protocol
@@ -309,58 +363,149 @@ class FileStoreHandler:
 
     #set pred's
     transport.open()
-    client.setNodePred(myNode)
+    client.setNodePred(self.myNode)
     transport.close()
 
 
-
-
-
-   
+    #UPDATE STARTING POINTS FINGER TABLE
     start = nodeID
-    #check affected fingertables    
-    while(start.id != myID):
-      transport = TSocket.TSocket(start.ip,start.port)
-      transport = TTransport.TBufferedTransport(transport)
-      protocol = TBinaryProtocol.TBinaryProtocol(transport)
-      client = FileStore.Client(protocol)
-      transport.open()
-      for i in range(256):
-        a = (hexStr_to_int(start.id)+2**i)%long(2**256)
-        begin = hexStr_to_int(pred.id)+1
-        end = hexStr_to_int(myID)+1        
-        if isBtwn(begin,a,end):
-          client.updateFinger(i, myNode)
+    transport = TSocket.TSocket(start.ip,start.port)
+    transport = TTransport.TBufferedTransport(transport)
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    client = FileStore.Client(protocol)
+    transport.open()
+    start_succ = client.getFingertable()[0]
+    for i in range(256):
+      a = ((hexStr_to_int(start.id)+2**i)%(2**256))
+      begin = hexStr_to_int(self.pred.id)+1
+      end = hexStr_to_int(self.myID)+1        
+      if isBtwn(begin,a,end):
+        client.updateFinger(i, self.myNode)
 
 
-      #start = successor
-      fTin = client.getFingertable()
-      start = client.getFingertable()[0]
-      transport.close()
-    print fingertable
+    aFT = client.getFingertable()
+    print "PRIOR TO UPDATING ALL", "THIS IS FINGERTABLE FOR A:"
+    print "Fingertable for ",self.myIP,str(self.myNode.port)
+    counter = 0
+    print "%s \t %s \t %s \t %s" %("index", "ip", "port", "digest")
+    for node in xrange(len(aFT)):
+      print "%d \t %s \t %d \t %s " % (counter, aFT[node].ip, aFT[node].port, aFT[node].id)
+      counter = counter + 1
+    transport.close()
 
 
-
-
-
-
-
-
-   
-
-          
-
-
-
-
-
-    print str(count) + " NEW NODES IN THE NETWORK"
+    print "PRIOR TO UPDATING ALL", "THIS IS FINGERTABLE FOR B:"
+    print "Fingertable for ",self.myIP,str(self.myNode.port)
+    counter = 0
+    print "%s \t %s \t %s \t %s" %("index", "ip", "port", "digest")
+    for node in xrange(len(self.fingertable)):
+      print "%d \t %s \t %d \t %s " % (counter, self.fingertable[node].ip, self.fingertable[node].port, self.fingertable[node].id)
+      counter = counter + 1
+    print "PRED:"
+    print "%s \t %d \t %s " % (self.pred.ip, self.pred.port, self.pred.id)
+    
 
 
 
 
-  def leave(self):
-    return 0
+    if(self.pred.id != self.fingertable[0].id):
+    #START AT SUCCESSOR(START)    
+      while(start_succ.id != start.id):
+        transport = TSocket.TSocket(start_succ.ip,start_succ.port)
+        transport = TTransport.TBufferedTransport(transport)
+        protocol = TBinaryProtocol.TBinaryProtocol(transport)
+        client = FileStore.Client(protocol)
+        transport.open()
+        for i in xrange(256):
+          a = ((hexStr_to_int(start_succ.id)+2**i)%(2**256))
+          begin = hexStr_to_int(self.pred.id)+1
+          end = hexStr_to_int(self.myID)+1        
+          if isBtwn(begin,a,end):
+            client.updateFinger(i, self.myNode)
+        #start = successor
+        #fTin = client.getFingertable()
+        start_succ = client.getFingertable()[0]
+        transport.close()
+
+  	#print Fingertables
+    print "WE HERE!!!"
+    print "Fingertable for ",self.myIP,str(self.myNode.port)
+    for node in range(len(self.fingertable)):
+      print "%d \t %s \t %d \t %s " % (node,self.fingertable[node].ip, self.fingertable[node].port, self.fingertable[node].id)
+
+
+
+
+
+      #PULL FILES
+    transport = TSocket.TSocket(self.fingertable[0].ip,self.fingertable[0].port)
+    transport = TTransport.TBufferedTransport(transport)
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    client = FileStore.Client(protocol)
+    transport.open()
+    filesIn = client.pullUnownedFiles()
+    transport.close()
+    for f in filesIn:
+      self.writeFile(f)
+    return
+
+        
+      
+
+
+
+
+  def remove(self):
+    #set pred(successor(node leaving)) = pred(node leaving)
+    successor = self.fingertable[0]
+    transport = TSocket.TSocket(successor.ip,successor.port)
+    transport = TTransport.TBufferedTransport(transport)
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    client = FileStore.Client(protocol)
+    transport.open()
+    client.setNodePred(self.pred)
+    transport.close()
+
+
+    #if not last node
+    if(self.self.myID != self.fingertable[0].id):
+      start_succ = self.fingertable[0]
+      
+
+      #edit all fingertables
+      while(start_succ.id !=  myID):
+        transport = TSocket.TSocket(start_succ.ip,start_succ.port)
+        transport = TTransport.TBufferedTransport(transport)
+        protocol = TBinaryProtocol.TBinaryProtocol(transport)
+        client = FileStore.Client(protocol)
+        transport.open()
+        for i in range(256):
+          a = (hexStr_to_int(start_succ.id)+2**i)
+          begin = hexStr_to_int(self.pred.id)+1
+          end = hexStr_to_int(self.myID)+1        
+          if isBtwn(begin,a,end):
+            client.updateFinger(i, successor)
+        start_succ = client.getFingertable()[0]
+        transport.close()
+    else:
+      raise(SystemException)
+
+
+    transport = TSocket.TSocket(self.fingertable[0].ip,self.fingertable[0].port)
+    transport = TTransport.TBufferedTransport(transport)
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    client = FileStore.Client(protocol)
+    transport.open()
+    listOut = []
+    for key,value in self.ownerFileMeta.iteritems():
+      listOut.append(value)
+    client.pushUnownedFiles(listOut)
+    transport.close()
+    return
+
+      
+      
+    
     
 
 
